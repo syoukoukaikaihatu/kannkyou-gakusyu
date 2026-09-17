@@ -18,6 +18,56 @@ function courseOf(id){return id[0]==='W'?'waste':id[0]==='A'?'agri':'circular'}
 function pct(k){const c=courses[k];return Math.round(c.items.filter(x=>state.completed.includes(x[0])).length/c.items.length*100)}
 function next(k){return courses[k].items.find(x=>!state.completed.includes(x[0]))||courses[k].items.at(-1)}
 function promptFor(id){const it=item(id),title=it.row[1],goal=it.row[2],domain=it.course;return `私は経営者として「${domain}」を体系的に学んでいます。\n毎日30分程度、ChatGPTとの対話で学習します。\n\n【今日のテーマ】\n${id}｜${title}\n\n【今日のゴール】\n${goal}\n\n【学習方針】\n・初心者にも分かる言葉で説明してください。\n・単なる知識ではなく、経営者が判断に使える理解を目指します。\n・最新情報が重要な内容はWeb検索し、官公庁・自治体・公的統計・一次情報を優先してください。\n・事実、一般論、推測を区別してください。\n・一方的に長く説明せず、私への質問を挟みながら一問ずつ対話形式で進めてください。\n\n【30分の進め方】\nSTEP1｜基礎を理解する（約8分）\n今日のテーマの全体像、重要用語、仕組みを説明してください。\n\nSTEP2｜市場・制度・実務を調べる（約7分）\n今日のテーマに必要な最新データ、制度、業界動向、実務上のポイントを確認してください。\n\nSTEP3｜経営者として考える（約7分）\n収益、コスト、投資、人材、リスク、競争力、法令・制度の観点から重要な問いを出してください。\n\nSTEP4｜自社・事業に当てはめる（約5分）\n私に一問ずつ質問し、自社への当てはめを手伝ってください。${domain==='余熱 × 農業'?' 廃棄物焼却施設の余熱を農業に利用する事業性を意識してください。':''}\n\nSTEP5｜サイト反映用データを作る（約3分）\n最後に、下記の形式をそのまま使って出力してください。各項目は簡潔に。確認できた事実と推測・課題候補を混ぜないでください。\n\n[SITE_DATA]\nTHEME: ${id}｜${title}\nLEARNED: 今日わかった一般知識・業界知識\nOUR_FACT: 自社について確認できた事実。なければ「なし」\nISSUE: 自社の課題候補。断定できなければ「要確認」と明記。なければ「なし」\nUNKNOWN: まだ分からないこと・次に確認すること。なければ「なし」\nSOURCE: 根拠URL・資料名・確認日。なければ「なし」\n[/SITE_DATA]\n\nこのブロックはサイトへそのままコピペするため、見出し名を変更しないでください。\nではSTEP1から始めてください。`}
+
+function sharePromptFor(id){
+ const it=item(id),n=state.notes[id]||{};
+ if(!it)return '';
+ return `以下は、私がChatGPTで学習した「${id}｜${it.row[1]}」の記録です。
+この内容を、社内の他の人へ短時間で共有できる資料にしてください。
+
+【用途】
+・社内共有用
+・A4 1枚を基本とする
+・読む時間は3分程度
+・専門知識がない人にも分かる言葉にする
+・学習内容を全部載せず、重要事項だけに絞る
+・事実と推測・課題候補を混同しない
+・自社情報は下記の記録にある内容だけを使い、勝手に補完しない
+・根拠が不足している点は「要確認」とする
+
+【資料構成】
+1. テーマ・今回の結論
+2. 押さえておきたいポイント（3〜5点）
+3. 自社との関係
+4. 自社で確認できていること
+5. 課題・検討事項
+6. 次に確認すること
+7. 主な根拠・出典
+
+【学習記録】
+■ 今日わかったこと｜KNOWLEDGE
+${n.learned||'なし'}
+
+■ 自社で確認できた事実｜OUR FACT
+${n.fact||'なし'}
+
+■ 会社の課題候補｜ISSUE
+${n.issue||'なし'}
+
+■ まだ分からない／次に確認｜UNKNOWN
+${n.next||'なし'}
+
+■ 根拠・参考資料｜SOURCE
+${n.source||'なし'}
+
+まずA4 1枚相当の完成原稿を作成してください。表や箇条書きが適切なら使ってください。最後に「この内容をPowerPoint 3枚版にする場合の構成」も簡潔に示してください。`;
+}
+async function copySharePrompt(id){
+ const n=state.notes[id]||{};
+ if(!n.learned&&!n.fact&&!n.issue&&!n.next){alert('先に学習結果を保存してください。');return;}
+ try{await navigator.clipboard.writeText(sharePromptFor(id));alert('社内共有資料用プロンプトをコピーしました。ChatGPTに貼り付けてください。')}catch(e){alert('コピーできませんでした。テーマを開いて学習記録を確認してください。')}
+}
+
 function render(p,arg){document.getElementById('pageTitle').textContent=Object.fromEntries(nav)[p]||'学習';const c=document.getElementById('content');if(p==='home')home(c);else if(['waste','agri','circular'].includes(p))course(c,p);else if(p==='lesson')lesson(c,arg||state.current);else if(p==='company')company(c);else records(c)}
 function home(c){const total=Object.values(courses).reduce((a,x)=>a+x.items.length,0),done=state.completed.length; c.innerHTML=`<div class="hero"><span class="badge blue">DAILY 30 MINUTES</span><h2>今日も30分、ChatGPTで学ぶ。</h2><p class="muted">このサイトの役割は3つだけ。テーマを選ぶ → ChatGPTで学ぶ → 分かったことを残す。</p><div class="today-flow"><span class="flow-step">1 テーマを選ぶ</span><span class="flow-arrow">→</span><span class="flow-step">2 プロンプトをコピー</span><span class="flow-arrow">→</span><span class="flow-step">3 ChatGPTで30分</span><span class="flow-arrow">→</span><span class="flow-step">4 記録・完了</span></div></div>
 <div class="grid cols-3"><div class="card course-card"><div class="small muted">廃棄物</div><div class="metric">${pct('waste')}%</div><div class="progress"><i style="width:${pct('waste')}%"></i></div><h3 style="margin-top:14px">次回 ${next('waste')[0]}｜${next('waste')[1]}</h3><button class="btn big-action" onclick="go('lesson','${next('waste')[0]}')">廃棄物を学ぶ</button></div>
@@ -34,14 +84,14 @@ function parseSiteData(text){
 function lesson(c,id){state.current=id;save();const it=item(id);if(!it)return go('home');const n=state.notes[id]||{};c.innerHTML=`<div class="hero"><span class="badge blue">${it.course}</span><h2>${id}｜${it.row[1]}</h2><p class="muted">今日のゴール：${it.row[2]}</p></div>
 <div class="grid cols-2"><div class="card"><h3>① ChatGPTで30分学習</h3><p class="muted">今日専用のプロンプトをコピーしてChatGPTに貼り付けます。最後にサイト反映用データが出力されます。</p><button class="btn big-action" id="copyPrompt">ChatGPT学習プロンプトをコピー</button><details style="margin-top:12px"><summary>プロンプトを確認</summary><div class="prompt-box" id="promptText">${esc(promptFor(id))}</div></details></div>
 <div class="card"><h3>② ChatGPTの結果をそのまま貼る</h3><p class="muted">学習終了時の [SITE_DATA] ～ [/SITE_DATA] を丸ごとコピーして貼り付けてください。</p><div class="field"><label>ChatGPTからコピーした内容</label><textarea id="bulkImport" class="import-box" placeholder="[SITE_DATA]\nTHEME: ...\nLEARNED: ...\nOUR_FACT: ...\nISSUE: ...\nUNKNOWN: ...\nSOURCE: ...\n[/SITE_DATA]"></textarea></div><button class="btn big-action" id="applyImport">貼り付け内容を反映</button></div></div>
-<div class="card" style="margin-top:16px"><div class="section-head"><div><h3>③ 反映内容</h3><div class="muted">必要ならここで修正できます。保存すると「学習記録」と「会社の現在地」に同時反映します。</div></div></div><div class="form-grid"><div class="field full"><label>今日わかったこと｜KNOWLEDGE</label><textarea id="learned">${esc(n.learned||'')}</textarea></div><div class="field"><label>自社で確認できた事実｜OUR FACT</label><textarea id="fact">${esc(n.fact||'')}</textarea></div><div class="field"><label>会社の課題候補｜ISSUE</label><textarea id="issue">${esc(n.issue||'')}</textarea></div><div class="field"><label>まだ分からない／次に確認｜UNKNOWN</label><textarea id="next">${esc(n.next||'')}</textarea></div><div class="field full"><label>根拠・参考資料｜SOURCE</label><textarea id="source">${esc(n.source||'')}</textarea></div></div><div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px"><button class="btn" id="saveNote">保存</button><button class="btn secondary" id="toggleDone">${state.completed.includes(id)?'完了を取り消す':'保存して完了'}</button></div></div>`;
+<div class="card" style="margin-top:16px"><div class="section-head"><div><h3>③ 反映内容</h3><div class="muted">必要ならここで修正できます。保存すると「学習記録」と「会社の現在地」に同時反映します。</div></div></div><div class="form-grid"><div class="field full"><label>今日わかったこと｜KNOWLEDGE</label><textarea id="learned">${esc(n.learned||'')}</textarea></div><div class="field"><label>自社で確認できた事実｜OUR FACT</label><textarea id="fact">${esc(n.fact||'')}</textarea></div><div class="field"><label>会社の課題候補｜ISSUE</label><textarea id="issue">${esc(n.issue||'')}</textarea></div><div class="field"><label>まだ分からない／次に確認｜UNKNOWN</label><textarea id="next">${esc(n.next||'')}</textarea></div><div class="field full"><label>根拠・参考資料｜SOURCE</label><textarea id="source">${esc(n.source||'')}</textarea></div></div><div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px"><button class="btn" id="saveNote">保存</button><button class="btn secondary" id="toggleDone">${state.completed.includes(id)?'完了を取り消す':'保存して完了'}</button><button class="btn light" id="sharePrompt">共有資料プロンプトをコピー</button></div></div>`;
 document.getElementById('copyPrompt').onclick=async()=>{try{await navigator.clipboard.writeText(promptFor(id));alert('学習プロンプトをコピーしました。ChatGPTに貼り付けて開始してください。')}catch(e){alert('コピーできませんでした。プロンプト表示から手動でコピーしてください。')}};
 document.getElementById('applyImport').onclick=()=>{const d=parseSiteData(document.getElementById('bulkImport').value);if(!d.LEARNED&&!d.OUR_FACT&&!d.ISSUE&&!d.UNKNOWN){alert('サイト反映用データを読み取れませんでした。ChatGPTの [SITE_DATA] ブロックを丸ごと貼り付けてください。');return;}document.getElementById('learned').value=d.LEARNED||'';document.getElementById('fact').value=(d.OUR_FACT||'').replace(/^なし$/,'');document.getElementById('issue').value=(d.ISSUE||'').replace(/^なし$/,'');document.getElementById('next').value=(d.UNKNOWN||'').replace(/^なし$/,'');document.getElementById('source').value=(d.SOURCE||'').replace(/^なし$/,'');alert('反映しました。内容を確認して「保存」または「保存して完了」を押してください。')};
 const collect=()=>{state.notes[id]={learned:document.getElementById('learned').value,fact:document.getElementById('fact').value,issue:document.getElementById('issue').value,next:document.getElementById('next').value,source:document.getElementById('source').value,date:new Date().toISOString().slice(0,10)};state.company=state.company||{};state.company[id]={fact:state.notes[id].fact,issue:state.notes[id].issue,unknown:state.notes[id].next,date:state.notes[id].date};save()};
-document.getElementById('saveNote').onclick=()=>{collect();alert('学習記録と会社の現在地に保存しました')};document.getElementById('toggleDone').onclick=()=>{collect();state.completed=state.completed.includes(id)?state.completed.filter(x=>x!==id):[...state.completed,id];save();render('lesson',id)}}
+document.getElementById('saveNote').onclick=()=>{collect();alert('学習記録と会社の現在地に保存しました')};document.getElementById('toggleDone').onclick=()=>{collect();state.completed=state.completed.includes(id)?state.completed.filter(x=>x!==id):[...state.completed,id];save();render('lesson',id)};document.getElementById('sharePrompt').onclick=()=>{collect();copySharePrompt(id)}}
 function company(c){state.company=state.company||{};const rows=Object.entries(state.company).filter(([,x])=>x.fact||x.issue||x.unknown).sort((a,b)=>(b[1].date||'').localeCompare(a[1].date||''));const facts=rows.filter(([,x])=>x.fact).length,issues=rows.filter(([,x])=>x.issue).length,unknown=rows.filter(([,x])=>x.unknown).length;c.innerHTML=`<div class="hero"><span class="badge blue">OUR COMPANY</span><h2>会社の現在地</h2><p class="muted">毎日の学習から「確認できた事実・課題候補・未確認事項」だけを自動で集約します。ここで新たに入力する必要はありません。</p></div><div class="grid cols-3"><div class="card"><div class="small muted">事実があるテーマ</div><div class="metric">${facts}</div></div><div class="card"><div class="small muted">課題候補があるテーマ</div><div class="metric">${issues}</div></div><div class="card"><div class="small muted">未確認があるテーマ</div><div class="metric">${unknown}</div></div></div><div class="table-wrap" style="margin-top:16px"><table><thead><tr><th>分野・テーマ</th><th>OUR FACT｜確認済み</th><th>ISSUE｜課題候補</th><th>UNKNOWN｜未確認</th><th></th></tr></thead><tbody>${rows.map(([id,x])=>{const it=item(id);return `<tr><td><span class="badge">${id}</span><br><b>${it?esc(it.row[1]):id}</b></td><td>${nl(x.fact)}</td><td>${nl(x.issue)}</td><td>${nl(x.unknown)}</td><td><button class="btn light" onclick="go('lesson','${id}')">開く</button></td></tr>`}).join('')||'<tr><td colspan="5" class="empty">まだ会社情報はありません。学習後のサイト反映用データを貼り付けると、ここへ自動で蓄積されます。</td></tr>'}</tbody></table></div>`}
 function nl(v=''){return esc(v).replace(/\n/g,'<br>')}
-function recent(limit=999){const rows=Object.entries(state.notes).filter(([,n])=>n.learned||n.fact||n.next).sort((a,b)=>(b[1].date||'').localeCompare(a[1].date||'')).slice(0,limit);return rows.length?rows.map(([id,n])=>{const it=item(id);return `<div class="list-row"><span class="badge ${state.completed.includes(id)?'ok':''}">${id}</span><div><b>${it?it.row[1]:id}</b><div class="small muted">${esc((n.learned||'').slice(0,80))}</div></div><button class="btn light" onclick="go('lesson','${id}')">開く</button></div>`}).join(''):'<div class="empty">まだ学習記録はありません。</div>'}
-function records(c){c.innerHTML=`<div class="section-head"><div><h2>学習記録</h2><div class="muted">廃棄物・農業・余熱×農業の学習履歴を一元管理します。会社の状況は「会社の現在地」に自動集約されます。</div></div></div>${recent()}`}
+function recent(limit=999){const rows=Object.entries(state.notes).filter(([,n])=>n.learned||n.fact||n.next).sort((a,b)=>(b[1].date||'').localeCompare(a[1].date||'')).slice(0,limit);return rows.length?rows.map(([id,n])=>{const it=item(id);return `<div class="list-row"><span class="badge ${state.completed.includes(id)?'ok':''}">${id}</span><div><b>${it?it.row[1]:id}</b><div class="small muted">${esc((n.learned||'').slice(0,80))}</div></div><div class="row-actions"><button class="btn light" onclick="go('lesson','${id}')">開く</button><button class="btn light" onclick="copySharePrompt('${id}')">共有資料</button></div></div>`}).join(''):'<div class="empty">まだ学習記録はありません。</div>'}
+function records(c){c.innerHTML=`<div class="section-head"><div><h2>学習記録</h2><div class="muted">廃棄物・農業・余熱×農業の学習履歴を一元管理します。必要なテーマだけ「共有資料」を押すと、A4 1枚の社内共有資料を作るChatGPT用プロンプトをコピーできます。</div></div></div>${recent()}`}
 function esc(v=''){return String(v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 document.getElementById('menuBtn').onclick=()=>document.getElementById('sidebar').classList.toggle('open');document.getElementById('exportBtn').onclick=()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`circular-learning-${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(a.href)};document.getElementById('importFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{if(confirm('現在のデータをバックアップ内容で置き換えますか？')){state={...fresh(),...JSON.parse(r.result)};save();go('home')}}catch(e){alert('JSONを読み込めませんでした')}};r.readAsText(f)};renderNav();render('home');
